@@ -1,0 +1,2025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GIF Finder — Discover, Preview & Download</title>
+    <meta name="description" content="A modern media explorer for finding, previewing, and downloading GIFs. Fast, beautiful, and intuitive.">
+    <style>
+        :root {
+            --bg: #08090d;
+            --surface: #111318;
+            --surface-2: #181b22;
+            --surface-3: #1e2129;
+            --border: #252830;
+            --border-light: #2e323b;
+            --text: #e8e9ed;
+            --text-secondary: #9a9da8;
+            --text-muted: #5f6370;
+            --accent: #7c5cfc;
+            --accent-2: #f062a6;
+            --accent-3: #4ec9f0;
+            --accent-glow: rgba(124, 92, 252, 0.35);
+            --danger: #f04770;
+            --success: #3dd68c;
+            --warning: #f5a623;
+            --radius-sm: 10px;
+            --radius: 14px;
+            --radius-lg: 20px;
+            --radius-xl: 26px;
+            --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border);
+            --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--border-light);
+            --shadow-glow: 0 0 40px var(--accent-glow), 0 0 80px rgba(124, 92, 252, 0.15);
+            --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-spring: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+            --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html {
+            scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(ellipse at 50% 0%, rgba(124, 92, 252, 0.06) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(240, 98, 166, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 20% 60%, rgba(78, 201, 240, 0.03) 0%, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        /* Subtle animated grid overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.03;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.5) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.5) 1px, transparent 1px);
+            background-size: 40px 40px;
+            animation: gridDrift 40s linear infinite;
+        }
+        @keyframes gridDrift {
+            0% {
+                background-position: 0 0, 0 0;
+            }
+            100% {
+                background-position: 40px 40px, 40px 40px;
+            }
+        }
+
+        /* ── Layout ─────────────────────── */
+        .app-container {
+            position: relative;
+            z-index: 1;
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        header {
+            padding: 28px 0 16px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: linear-gradient(180deg, var(--bg) 60%, transparent 100%);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding-bottom: 20px;
+        }
+        /* Compact header while scrolling */
+        #categoriesRow,
+        #recentSearches{
+            opacity: 1;
+            max-height: 100px;
+            overflow: hidden;
+            transition: opacity .3s ease, max-height .3s ease;
+        }
+
+        header.compact #categoriesRow,
+        header.compact #recentSearches{
+            opacity: 0;
+            max-height: 0;
+            pointer-events: none;
+        }
+        .logo-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 0 24px var(--accent-glow);
+            animation: logoPulse 3s ease-in-out infinite;
+        }
+        @keyframes logoPulse {
+            0%,
+            100% {
+                box-shadow: 0 0 24px var(--accent-glow);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(240, 98, 166, 0.4), 0 0 60px var(--accent-glow);
+            }
+        }
+        .logo-text {
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #e8e9ed 0%, #c4c7d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        /* ── Search Bar ────────────────── */
+        .search-wrapper {
+            position: relative;
+            max-width: 620px;
+            margin: 16px auto 0;
+            z-index: 10;
+        }
+        .search-bar-outer {
+            position: relative;
+            border-radius: var(--radius-xl);
+            padding: 3px;
+            background: linear-gradient(135deg,
+                    var(--accent), var(--accent-2), var(--accent-3),
+                    var(--accent), var(--accent-2));
+            background-size: 300% 300%;
+            animation: gradientRotate 6s ease-in-out infinite;
+            box-shadow: var(--shadow-glow);
+        }
+        @keyframes gradientRotate {
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+            25% {
+                background-position: 100% 0%;
+            }
+            50% {
+                background-position: 100% 100%;
+            }
+            75% {
+                background-position: 0% 100%;
+            }
+        }
+        .search-bar-inner {
+            display: flex;
+            align-items: center;
+            background: var(--surface);
+            border-radius: calc(var(--radius-xl) - 3px);
+            padding: 6px 8px 6px 18px;
+            gap: 10px;
+            transition: var(--transition-smooth);
+        }
+        .search-bar-inner:focus-within {
+            background: var(--surface-2);
+        }
+        .search-icon {
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            opacity: 0.7;
+        }
+        .search-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            color: var(--text);
+            font-size: 1rem;
+            font-family: var(--font-sans);
+            outline: none;
+            min-width: 0;
+            letter-spacing: -0.01em;
+        }
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+        .search-clear {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            background: var(--surface-3);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1rem;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition-fast);
+        }
+        .search-clear.visible {
+            display: flex;
+        }
+        .search-clear:hover {
+            background: var(--border-light);
+            color: var(--text);
+        }
+        .search-submit {
+            flex-shrink: 0;
+            padding: 10px 20px;
+            border-radius: var(--radius-lg);
+            border: none;
+            background: linear-gradient(135deg, var(--accent), #6a4de0);
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            letter-spacing: -0.01em;
+            transition: var(--transition-smooth);
+            white-space: nowrap;
+            font-family: var(--font-sans);
+        }
+        .search-submit:hover {
+            box-shadow: 0 0 28px var(--accent-glow);
+            transform: translateY(-1px);
+        }
+        .search-submit:active {
+            transform: scale(0.96);
+            transition: var(--transition-fast);
+        }
+
+        /* Suggestions dropdown */
+        .suggestions-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: var(--surface-2);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-modal);
+            overflow: hidden;
+            z-index: 60;
+            display: none;
+            animation: fadeSlideIn 0.2s ease-out;
+        }
+        .suggestions-dropdown.active {
+            display: block;
+        }
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .suggestion-item {
+            padding: 12px 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            transition: var(--transition-fast);
+            border-bottom: 1px solid var(--border);
+        }
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+        .suggestion-item:hover {
+            background: var(--surface-3);
+            color: var(--text);
+        }
+        .suggestion-item .s-icon {
+            opacity: 0.5;
+            font-size: 0.85rem;
+        }
+
+        /* ── Category Pills ────────────── */
+        .categories-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 14px;
+            padding: 0 4px;
+        }
+        .category-pill {
+            padding: 8px 16px;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: var(--transition-smooth);
+            font-family: var(--font-sans);
+            letter-spacing: -0.01em;
+            user-select: none;
+        }
+        .category-pill:hover {
+            border-color: var(--accent);
+            color: var(--text);
+            background: var(--surface-2);
+            box-shadow: 0 0 16px rgba(124, 92, 252, 0.15);
+            transform: translateY(-1px);
+        }
+        .category-pill:active {
+            transform: scale(0.95);
+            transition: var(--transition-fast);
+        }
+
+        /* ── Recent Searches ───────────── */
+        .recent-searches {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            margin-top: 12px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            align-items: center;
+        }
+        .recent-searches .rs-label {
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            margin-right: 2px;
+        }
+        .recent-tag {
+            padding: 5px 12px;
+            border-radius: 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: var(--transition-fast);
+            font-size: 0.78rem;
+            font-family: var(--font-sans);
+        }
+        .recent-tag:hover {
+            border-color: var(--accent-3);
+            color: var(--text);
+            background: var(--surface-3);
+        }
+
+        /* ── Results Header ────────────── */
+        .results-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 28px 0 16px;
+            padding: 0 4px;
+        }
+        .results-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .results-count {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            background: var(--surface);
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: var(--font-sans);
+            transition: var(--transition-smooth);
+            font-weight: 500;
+        }
+        .back-btn:hover {
+            border-color: var(--accent);
+            color: var(--text);
+        }
+        .sort-group {
+            display: flex;
+            gap: 4px;
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 3px;
+            border: 1px solid var(--border);
+        }
+        .sort-btn {
+            padding: 7px 14px;
+            border-radius: 17px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: var(--transition-fast);
+            font-family: var(--font-sans);
+            white-space: nowrap;
+        }
+        .sort-btn.active {
+            background: var(--surface-3);
+            color: var(--text);
+            box-shadow: 0 0 0 1px var(--border-light);
+        }
+        .sort-btn:hover:not(.active) {
+            color: var(--text);
+        }
+
+        /* ── Masonry Grid ──────────────── */
+        .masonry-grid {
+            column-count: 6;
+            column-gap: 12px;
+            padding: 0 4px;
+        }
+        @media (max-width: 1200px) {
+            .masonry-grid {
+                column-count: 4;
+            }
+        }
+        @media (max-width: 768px) {
+            .masonry-grid {
+                column-count: 3;
+                column-gap: 8px;
+            }
+        }
+        @media (max-width: 480px) {
+            .masonry-grid {
+                column-count: 2;
+                column-gap: 6px;
+            }
+        }
+
+        .gif-card {
+            break-inside: avoid;
+            margin-bottom: 12px;
+            border-radius: var(--radius);
+            overflow: hidden;
+            background: var(--surface);
+            cursor: pointer;
+            position: relative;
+            transition: var(--transition-smooth);
+            border: 1px solid transparent;
+            animation: cardReveal 0.5s ease-out both;
+            box-shadow: var(--shadow-card);
+        }
+        @keyframes cardReveal {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        .gif-card:hover {
+            border-color: var(--border-light);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--border-light);
+            transform: translateY(-3px);
+            z-index: 5;
+        }
+        .gif-card .card-img-wrapper {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            background: var(--surface-3);
+            line-height: 0;
+        }
+        .gif-card img {
+            width: 100%;
+            height: auto;
+            display: block;
+            transition: transform 0.4s ease-out;
+        }
+        .gif-card:hover img {
+            transform: scale(1.04);
+        }
+
+        /* Hover overlay */
+        .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.75) 100%);
+            opacity: 0;
+            transition: var(--transition-smooth);
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 6px;
+            padding: 16px 10px;
+            pointer-events: none;
+        }
+        .gif-card:hover .card-overlay {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .card-action-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: var(--transition-fast);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card-action-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+        .card-action-btn.fav-active {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        /* Card info footer */
+        .card-info {
+            padding: 8px 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        .card-tag-mini {
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: var(--surface-2);
+            font-size: 0.68rem;
+            cursor: pointer;
+            transition: var(--transition-fast);
+            color: var(--text-secondary);
+            font-family: var(--font-sans);
+        }
+        .card-tag-mini:hover {
+            background: var(--surface-3);
+            color: var(--text);
+        }
+
+        /* ── Skeleton Cards ────────────── */
+        .skeleton-card {
+            break-inside: avoid;
+            margin-bottom: 12px;
+            border-radius: var(--radius);
+            overflow: hidden;
+            background: var(--surface);
+            animation: shimmer 1.6s ease-in-out infinite;
+        }
+        .skeleton-card .sk-img {
+            width: 100%;
+            background: var(--surface-3);
+            aspect-ratio: var(--sk-ratio, 1);
+        }
+        @keyframes shimmer {
+            0%,
+            100% {
+                opacity: 0.5;
+            }
+            50% {
+                opacity: 0.85;
+            }
+        }
+
+        /* ── Empty State ───────────────── */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        .empty-state h3 {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        /* ── Modal ─────────────────────── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.25s ease-out;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        .modal-content {
+            background: var(--surface-2);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-modal);
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalSlideUp 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+            position: relative;
+        }
+        @keyframes modalSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px) scale(0.94);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            cursor: pointer;
+            font-size: 1.2rem;
+            z-index: 5;
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition-fast);
+        }
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .modal-gif-wrap {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            min-height: 200px;
+            line-height: 0;
+        }
+        .modal-gif-wrap img {
+            width: 100%;
+            height: auto;
+            max-height: 50vh;
+            object-fit: contain;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        }
+        .modal-details {
+            padding: 20px 24px 24px;
+        }
+        .modal-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.01em;
+        }
+        .modal-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+        .modal-meta span {
+            background: var(--surface);
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+        }
+        .modal-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .modal-action-btn {
+            padding: 10px 18px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: var(--transition-fast);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-sans);
+        }
+        .modal-action-btn:hover {
+            background: var(--surface-3);
+            border-color: var(--accent);
+        }
+        .modal-action-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+            font-weight: 600;
+        }
+        .modal-action-btn.primary:hover {
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+        .modal-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 12px;
+        }
+        .modal-tag {
+            padding: 6px 14px;
+            border-radius: 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            transition: var(--transition-fast);
+            font-family: var(--font-sans);
+        }
+        .modal-tag:hover {
+            border-color: var(--accent-3);
+            color: var(--text);
+            background: var(--surface-3);
+        }
+        .modal-related {
+            margin-top: 20px;
+        }
+        .modal-related h4 {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .related-row {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+        }
+        .related-thumb {
+            flex-shrink: 0;
+            width: 100px;
+            height: 100px;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: var(--transition-fast);
+            background: var(--surface-3);
+        }
+        .related-thumb:hover {
+            border-color: var(--accent);
+        }
+        .related-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* ── Floating Surprise Button ──── */
+        .floating-surprise {
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            z-index: 90;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, var(--accent-2), var(--accent));
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 8px 28px rgba(240, 98, 166, 0.4);
+            transition: var(--transition-smooth);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: floatBounce 3s ease-in-out infinite;
+        }
+        @keyframes floatBounce {
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+        .floating-surprise:hover {
+            transform: scale(1.1) translateY(-4px);
+            box-shadow: 0 12px 36px rgba(240, 98, 166, 0.55);
+            animation: none;
+        }
+        .floating-surprise:active {
+            transform: scale(0.9);
+            transition: var(--transition-fast);
+        }
+
+        /* ── Toast ─────────────────────── */
+        .toast-container {
+            position: fixed;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .toast {
+            padding: 12px 20px;
+            border-radius: var(--radius);
+            background: var(--surface-3);
+            border: 1px solid var(--border-light);
+            color: var(--text);
+            font-size: 0.85rem;
+            font-weight: 500;
+            box-shadow: var(--shadow-modal);
+            animation: toastIn 0.35s ease-out, toastOut 0.35s 2s ease-in forwards;
+            pointer-events: auto;
+            text-align: center;
+            font-family: var(--font-sans);
+            letter-spacing: -0.01em;
+        }
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes toastOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-16px);
+            }
+        }
+
+        /* ── Scrollbar ─────────────────── */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-light);
+        }
+
+        /* ── Focus visible ─────────────── */
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 600px) {
+            .app-container {
+                padding: 0 12px;
+            }
+            .search-bar-inner {
+                padding: 4px 6px 4px 12px;
+                gap: 6px;
+            }
+            .search-submit {
+                padding: 8px 14px;
+                font-size: 0.8rem;
+            }
+            .search-input {
+                font-size: 0.9rem;
+            }
+            .results-title {
+                font-size: 1.1rem;
+            }
+            .floating-surprise {
+                bottom: 16px;
+                right: 16px;
+                width: 44px;
+                height: 44px;
+                font-size: 1.3rem;
+            }
+            .modal-content {
+                max-height: 95vh;
+                border-radius: var(--radius);
+            }
+            .modal-details {
+                padding: 14px 16px 18px;
+            }
+        }
+
+        .loading-spinner{
+            width:50px;
+            height:50px;
+            margin:60px auto;
+            border:4px solid rgba(255,255,255,.2);
+            border-top-color:#7c5cfc;
+            border-radius:50%;
+            animation:spin .8s linear infinite;
+        }
+
+        @keyframes spin{
+            to{
+                transform:rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <div class="logo-area">
+                <div class="logo-icon">🎞️</div>
+                <span class="logo-text">GIF Finder</span>
+            </div>
+            <p class="subtitle">Discover, Preview & Download</p>
+
+            <!-- Search Bar -->
+            <div class="search-wrapper" id="searchWrapper">
+                <div class="search-bar-outer">
+                    <div class="search-bar-inner">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" class="search-input" id="searchInput"
+                        placeholder="Search GIFs by keyword..."
+                        autocomplete="off"
+                        aria-label="Search GIFs">
+                        <button class="search-clear" id="searchClear" aria-label="Clear search">✕</button>
+                        <button class="search-submit" id="searchSubmit">Find</button>
+                    </div>
+                </div>
+                <!-- Suggestions -->
+                <div class="suggestions-dropdown" id="suggestionsDropdown"></div>
+            </div>
+
+            <!-- Categories -->
+            <div class="categories-row" id="categoriesRow">
+                <button class="category-pill" data-query="trending">🔥 Trending</button>
+                <button class="category-pill" data-query="memes">😂 Memes</button>
+                <button class="category-pill" data-query="reactions">❤️ Reactions</button>
+                <button class="category-pill" data-query="gaming">🎮 Gaming</button>
+                <button class="category-pill" data-query="movies">🎬 Movies</button>
+                <button class="category-pill" data-query="animals">🐱 Animals</button>
+                <button class="category-pill" data-query="sports">⚽ Sports</button>
+                <button class="category-pill" data-query="music">🎵 Music</button>
+            </div>
+
+            <!-- Recent Searches -->
+            <div class="recent-searches" id="recentSearches">
+                <span class="rs-label">Recent</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main id="mainContent">
+            <!-- Results Header (hidden initially) -->
+            <div class="results-header" id="resultsHeader" style="display:none;">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <button class="back-btn" id="backBtn">← Back</button>
+                    <span class="results-title" id="resultsTitle">Trending</span>
+                    <span class="results-count" id="resultsCount"></span>
+                </div>
+                <div class="sort-group" id="sortGroup">
+                    <button class="sort-btn active" data-sort="trending">Trending</button>
+                    <button class="sort-btn" data-sort="newest">Newest</button>
+                    <button class="sort-btn" data-sort="relevant">Relevant</button>
+                </div>
+            </div>
+
+            <!-- GIF Grid -->
+            <div class="masonry-grid" id="gifGrid"></div>
+
+            <!-- Empty State -->
+            <div class="empty-state" id="emptyState" style="display:none;">
+                <div class="empty-icon">🔎</div>
+                <h3>No GIFs found</h3>
+                <p>Try a different search term or browse categories above.</p>
+            </div>
+
+            <!-- Scroll Sentinel -->
+            <div id="scrollSentinel" style="height:1px;"></div>
+        </main>
+    </div>
+
+    <!-- Floating Surprise Button -->
+    <button class="floating-surprise" id="surpriseBtn" aria-label="Random GIF" title="Surprise Me!">🎲</button>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Preview Modal -->
+    <div class="modal-overlay" id="modalOverlay" style="display:none;">
+        <div class="modal-content" id="modalContent" role="dialog" aria-modal="true" aria-label="GIF Preview">
+            <button class="modal-close" id="modalClose" aria-label="Close preview">✕</button>
+            <div class="modal-gif-wrap" id="modalGifWrap"></div>
+            <div class="modal-details" id="modalDetails"></div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ───────────────────────────────────
+            // CONFIG — Replace with your Giphy API key
+            // Get one at: https://developers.giphy.com
+            // ───────────────────────────────────
+            const GIPHY_API_KEY = '7ndPrwNgPubfCXA98HLNLdprID4BX9ua';
+            const IS_DEMO_MODE = GIPHY_API_KEY === 'YOUR_GIPHY_API_KEY';
+            const API_BASE = 'https://api.giphy.com/v1/gifs';
+            const PER_PAGE = 30;
+
+            // ───────────────────────────────────
+            // DOM refs
+            // ───────────────────────────────────
+            const $ = (sel) => document.querySelector(sel);
+            const $$ = (sel) => document.querySelectorAll(sel);
+
+            const searchInput = $('#searchInput');
+            const searchClear = $('#searchClear');
+            const searchSubmit = $('#searchSubmit');
+            const searchWrapper = $('#searchWrapper');
+            const suggestionsDropdown = $('#suggestionsDropdown');
+            const gifGrid = $('#gifGrid');
+            const resultsHeader = $('#resultsHeader');
+            const resultsTitle = $('#resultsTitle');
+            const resultsCount = $('#resultsCount');
+            const backBtn = $('#backBtn');
+            const sortGroup = $('#sortGroup');
+            const emptyState = $('#emptyState');
+            const scrollSentinel = $('#scrollSentinel');
+            const recentSearches = $('#recentSearches');
+            const categoriesRow = $('#categoriesRow');
+            const surpriseBtn = $('#surpriseBtn');
+            const toastContainer = $('#toastContainer');
+            const modalOverlay = $('#modalOverlay');
+            const modalGifWrap = $('#modalGifWrap');
+            const modalDetails = $('#modalDetails');
+            const modalClose = $('#modalClose');
+            const modalContent = $('#modalContent');
+
+            // ───────────────────────────────────
+            // State
+            // ───────────────────────────────────
+            let currentQuery = '';
+            let currentSort = 'trending';
+            let currentOffset = 0;
+            let isLoading = false;
+            let hasMore = true;
+            let allGifs = [];
+            let favorites = JSON.parse(localStorage.getItem('gif_finder_favorites') || '{}');
+            let recentSearchList = JSON.parse(localStorage.getItem('gif_finder_recent') || '[]');
+            let currentModalGif = null;
+
+            // ───────────────────────────────────
+            // Demo data generator
+            // ───────────────────────────────────
+            function generateDemoGifs(count, query = 'trending') {
+                const demoGifs = [];
+                const hues = [260, 340, 195, 30, 150, 10, 280, 45, 200, 320];
+                const tagsByQuery = {
+                    'trending': ['viral', 'trending', 'popular', 'awesome', 'cool'],
+                    'memes': ['meme', 'funny', 'lol', 'joke', 'humor'],
+                    'reactions': ['react', 'mood', 'face', 'response', 'vibe'],
+                    'gaming': ['game', 'play', 'win', 'epic', 'gamer'],
+                    'movies': ['film', 'scene', 'movie', 'cinema', 'clip'],
+                    'animals': ['cute', 'pet', 'animal', 'wild', 'adorable'],
+                    'sports': ['goal', 'win', 'sport', 'action', 'play'],
+                    'music': ['song', 'dance', 'beat', 'music', 'groove'],
+                };
+                const tags = tagsByQuery[query] || ['gif', 'animate', 'motion', 'visual', 'media'];
+
+                for (let i = 0; i < count; i++) {
+                    const hue = hues[i % hues.length];
+                    const sat = 60 + Math.floor(Math.random() * 30);
+                    const light = 45 + Math.floor(Math.random() * 25);
+                    const w = 300 + Math.floor(Math.random() * 200);
+                    const h = 200 + Math.floor(Math.random() * 300);
+                    const aspectRatio = w / h;
+                    const id = 'demo-' + query + '-' + i + '-' + Date.now();
+                    demoGifs.push({
+                        id: id,
+                        title: `${query.charAt(0).toUpperCase() + query.slice(1)} GIF #${i + 1}`,
+                        images: {
+                            fixed_width: {
+                                url: `https://placehold.co/${w}x${h}/${hue},${sat},${light}/${hue+30},${sat+15},${light+20}?text=${encodeURIComponent(query)}&font=raleway`,
+                                width: w,
+                                height: h,
+                            },
+                            original: {
+                                url: `https://placehold.co/${w*2}x${h*2}/${hue},${sat},${light}/${hue+30},${sat+15},${light+20}?text=${encodeURIComponent(query)}&font=raleway`,
+                                width: w * 2,
+                                height: h * 2,
+                                mp4: '',
+                                size: `${(Math.random() * 4 + 0.5).toFixed(1)} MB`,
+                            },
+                        },
+                        tags: tags.sort(() => Math.random() - 0.5).slice(0, 3),
+                        user: { display_name: 'Demo Artist', username: 'demo_creator' },
+                        aspectRatio: aspectRatio,
+                        import_datetime: new Date(Date.now() - Math.random() * 30 * 86400000)
+                            .toISOString(),
+                    });
+                }
+                return demoGifs;
+            }
+
+            // ───────────────────────────────────
+            // API Calls
+            // ───────────────────────────────────
+            async function fetchTrending(offset = 0) {
+                if (IS_DEMO_MODE) {
+                    await sleep(400 + Math.random() * 400);
+                    return { data: generateDemoGifs(PER_PAGE, 'trending'), pagination: { total_count: 200,
+                            offset: offset } };
+                }
+                const res = await fetch(
+                    `${API_BASE}/trending?api_key=${GIPHY_API_KEY}&limit=${PER_PAGE}&offset=${offset}&rating=g`
+                    );
+                if (!res.ok) throw new Error(`API error: ${res.status}`);
+                return res.json();
+            }
+
+            async function fetchSearch(query, offset = 0, sort = 'relevant') {
+                if (IS_DEMO_MODE) {
+                    await sleep(350 + Math.random() * 500);
+                    const results = generateDemoGifs(PER_PAGE, query);
+                    return { data: results, pagination: { total_count: 180, offset: offset } };
+                }
+                const sortMap = { trending: 'trending', newest: 'recent', relevant: 'relevant' };
+                const giphySort = sortMap[sort] || 'relevant';
+                const res = await fetch(
+                    `${API_BASE}/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=${PER_PAGE}&offset=${offset}&rating=g&sort=${giphySort}&lang=en`
+                );
+                if (!res.ok) throw new Error(`API error: ${res.status}`);
+                return res.json();
+            }
+
+            async function fetchRelated(gifId) {
+                if (IS_DEMO_MODE) {
+                    await sleep(200);
+                    return { data: generateDemoGifs(8, 'related') };
+                }
+                const res = await fetch(
+                    `${API_BASE}/related?api_key=${GIPHY_API_KEY}&gif_id=${gifId}&limit=8`
+                );
+                if (!res.ok) return { data: [] };
+                return res.json();
+            }
+
+            function sleep(ms) {
+                return new Promise(r => setTimeout(r, ms));
+            }
+
+            // ───────────────────────────────────
+            // Render GIF cards
+            // ───────────────────────────────────
+            function createGifCard(gif, index) {
+                const card = document.createElement('div');
+                card.className = 'gif-card';
+                card.style.animationDelay = `${Math.min(index * 0.03, 0.8)}s`;
+                card.setAttribute('data-gif-id', gif.id);
+                card.setAttribute('role', 'button');
+                card.setAttribute('tabindex', '0');
+                card.setAttribute('aria-label', gif.title || 'GIF');
+
+                const imgUrl = gif.images?.fixed_width?.url || gif.images?.original?.url || '';
+                const isFav = !!favorites[gif.id];
+
+                card.innerHTML = `
+                <div class="card-img-wrapper">
+                  <img src="${imgUrl}" alt="${gif.title || 'GIF'}" loading="lazy" 
+                       onerror="this.style.background='var(--surface-3)';this.style.minHeight='180px';">
+                  <div class="card-overlay">
+                    <button class="card-action-btn fav-btn ${isFav ? 'fav-active' : ''}" 
+                            data-action="fav" data-gif-id="${gif.id}" 
+                            aria-label="${isFav ? 'Remove from favorites' : 'Add to favorites'}"
+                            title="${isFav ? 'Unfavorite' : 'Favorite'}">
+                      ${isFav ? '❤️' : '🤍'}
+                    </button>
+                    <button class="card-action-btn" data-action="download" data-gif-id="${gif.id}"
+                            aria-label="Download" title="Download">⬇</button>
+                    <button class="card-action-btn" data-action="copy" data-gif-id="${gif.id}"
+                            aria-label="Copy link" title="Copy Link">📋</button>
+                    <button class="card-action-btn" data-action="share" data-gif-id="${gif.id}"
+                            aria-label="Share" title="Share">📤</button>
+                    <button class="card-action-btn" data-action="preview" data-gif-id="${gif.id}"
+                            aria-label="Fullscreen preview" title="Preview">🔍</button>
+                  </div>
+                </div>
+                <div class="card-info">
+                  ${(gif.tags || []).slice(0, 3).map(t => 
+                    `<span class="card-tag-mini" data-tag="${t}">#${t}</span>`
+                  ).join('')}
+                  ${gif.user?.display_name ? 
+                    `<span style="margin-left:auto;opacity:0.6;">@${gif.user.display_name}</span>` : ''}
+                </div>
+              `;
+                return card;
+            }
+
+            function createSkeletonCard(aspectRatio = 1) {
+                const card = document.createElement('div');
+                card.className = 'skeleton-card';
+                const ratio = aspectRatio || 0.7 + Math.random() * 0.9;
+                card.innerHTML =
+                    `<div class="sk-img" style="--sk-ratio:${ratio.toFixed(2)};min-height:${140 + Math.random()*160}px;"></div>`;
+                return card;
+            }
+
+            function renderGifs(gifs, append = false) {
+                if (!append) {
+                    gifGrid.innerHTML = '';
+                    allGifs = [];
+                }
+                if (gifs.length === 0 && !append) {
+                    emptyState.style.display = 'block';
+                    gifGrid.style.display = 'none';
+                    return;
+                }
+                emptyState.style.display = 'none';
+                gifGrid.style.display = '';
+                const startIndex = allGifs.length;
+                gifs.forEach((gif, i) => {
+                    const card = createGifCard(gif, startIndex + i);
+                    gifGrid.appendChild(card);
+                    allGifs.push(gif);
+                });
+            }
+
+            function renderSkeletons(count = 12) {
+                for (let i = 0; i < count; i++) {
+                    gifGrid.appendChild(createSkeletonCard());
+                }
+            }
+
+            function clearSkeletons() {
+                gifGrid.querySelectorAll('.skeleton-card').forEach(el => el.remove());
+            }
+
+            // ───────────────────────────────────
+            // Load & Search
+            // ───────────────────────────────────
+            async function loadTrending(reset = true) {
+                if (isLoading) return;
+                isLoading = true;
+                if (reset) {
+                    currentOffset = 0;
+                    hasMore = true;
+                    gifGrid.innerHTML = '';
+                    allGifs = [];
+                    renderSkeletons(12);
+                    resultsHeader.style.display = 'flex';
+                    resultsTitle.textContent = '🔥 Trending';
+                    resultsCount.textContent = '';
+                    emptyState.style.display = 'none';
+                    gifGrid.style.display = '';
+                    currentQuery = '';
+                    currentSort = 'trending';
+                    updateSortButtons('trending');
+                    backBtn.style.display = 'none';
+                }
+                try {
+                    const data = await fetchTrending(currentOffset);
+                    clearSkeletons();
+                    renderGifs(data.data, !reset);
+                    currentOffset += data.data.length;
+                    hasMore = data.pagination.total_count > currentOffset;
+                    resultsCount.textContent = `${Math.min(currentOffset, data.pagination.total_count)}+ GIFs`;
+                    if (!hasMore && allGifs.length === 0) {
+                        emptyState.style.display = 'block';
+                    }
+                } catch (err) {
+                    clearSkeletons();
+                    showToast('⚠️ Failed to load GIFs. Check your connection.');
+                    console.error(err);
+                }
+                isLoading = false;
+            }
+
+            async function performSearch(query, reset = true, sort = 'relevant') {
+                if (isLoading && reset) return;
+                if (!query.trim()) return;
+                isLoading = true;
+                if (reset) {
+                    currentOffset = 0;
+                    hasMore = true;
+                    gifGrid.innerHTML = '';
+                    allGifs = [];
+                    renderSkeletons(12);
+                    resultsHeader.style.display = 'flex';
+                    resultsTitle.textContent = `🔍 ${query}`;
+                    resultsCount.textContent = '';
+                    emptyState.style.display = 'none';
+                    gifGrid.style.display = '';
+                    currentQuery = query;
+                    currentSort = sort;
+                    updateSortButtons(sort);
+                    backBtn.style.display = 'inline-flex';
+                    addRecentSearch(query);
+                }
+                try {
+                    const data = await fetchSearch(query, currentOffset, sort);
+                    clearSkeletons();
+                    renderGifs(data.data, !reset);
+                    currentOffset += data.data.length;
+                    hasMore = data.pagination.total_count > currentOffset;
+                    resultsCount.textContent = `${Math.min(currentOffset, data.pagination.total_count)}+ results`;
+                    if (!hasMore && allGifs.length === 0) {
+                        emptyState.style.display = 'block';
+                        gifGrid.style.display = 'none';
+                    }
+                } catch (err) {
+                    clearSkeletons();
+                    showToast('⚠️ Search failed. Please try again.');
+                    console.error(err);
+                }
+                isLoading = false;
+            }
+
+            function updateSortButtons(activeSort) {
+                sortGroup.querySelectorAll('.sort-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.getAttribute('data-sort') === activeSort);
+                });
+            }
+
+            // ───────────────────────────────────
+            // Infinite Scroll
+            // ───────────────────────────────────
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && hasMore && !isLoading && allGifs.length > 0) {
+                        if (currentQuery) {
+                            performSearch(currentQuery, false, currentSort);
+                        } else {
+                            loadTrending(false);
+                        }
+                    }
+                });
+            }, { rootMargin: '400px' });
+            observer.observe(scrollSentinel);
+
+            // ───────────────────────────────────
+            // Modal
+            // ───────────────────────────────────
+            function openModal(gif) {
+                currentModalGif = gif;
+                const imgUrl =
+                    gif.images?.fixed_height?.url ||
+                    gif.images?.fixed_width?.url ||
+                    gif.images?.downsized?.url ||
+                    gif.images?.downsized_large?.url ||
+                    gif.images?.original?.url;
+                const mp4Url = gif.images?.original?.mp4 || '';
+                const width = gif.images?.original?.width || '—';
+                const height = gif.images?.original?.height || '—';
+                const size = gif.images?.original?.size || 'Unknown';
+                const title = gif.title || 'Untitled GIF';
+                const tags = gif.tags || [];
+                const user = gif.user?.display_name || gif.user?.username || 'Unknown';
+
+                modalGifWrap.innerHTML = `
+                <div class="loading-spinner"></div>
+                <img id="previewGif"
+                    src="${imgUrl}"
+                    alt="${title}"
+                    loading="eager"
+                    decoding="async"
+                    style="display:none;">
+                `;
+                const previewGif = document.getElementById("previewGif");
+
+                previewGif.onload = () => {
+                    document.querySelector(".loading-spinner")?.remove();
+                    previewGif.style.display = "block";
+                };
+                
+                modalDetails.innerHTML = `
+                <div class="modal-title">${escapeHTML(title)}</div>
+                <div class="modal-meta">
+                  <span>${width} × ${height}</span>
+                  <span>${typeof size === 'string' ? size : (size > 0 ? (size/1024/1024).toFixed(2)+' MB' : 'N/A')}</span>
+                  <span>GIF</span>
+                  <span>By @${escapeHTML(user)}</span>
+                </div>
+                <div class="modal-actions">
+                  <button class="modal-action-btn primary" id="modalDownloadGif">⬇ Download GIF</button>
+                  ${mp4Url ? '<button class="modal-action-btn" id="modalDownloadMp4">🎬 Download MP4</button>' : ''}
+                  <button class="modal-action-btn" id="modalCopyLink">📋 Copy Link</button>
+                  <button class="modal-action-btn" id="modalCopyMarkdown">📝 Copy Markdown</button>
+                  <button class="modal-action-btn" id="modalCopyHTML">💻 Copy HTML</button>
+                  <button class="modal-action-btn" id="modalShare">📤 Share</button>
+                  <button class="modal-action-btn" id="modalOpenSource">🔗 Open Source</button>
+                </div>
+                ${tags.length > 0 ? `
+                <div class="modal-tags">
+                  ${tags.map(t => `<span class="modal-tag" data-tag="${t}">#${t}</span>`).join('')}
+                </div>` : ''}
+                <div class="modal-related">
+                  <h4>Related GIFs</h4>
+                  <div class="related-row" id="relatedRow">
+                    <span style="color:var(--text-muted);font-size:0.8rem;">Loading...</span>
+                  </div>
+                </div>
+              `;
+
+                modalOverlay.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+                modalOverlay.setAttribute('aria-hidden', 'false');
+
+                // Bind modal action buttons
+                setTimeout(() => {
+                    const btnDL = $('#modalDownloadGif');
+                    const btnDLMp4 = $('#modalDownloadMp4');
+                    const btnCopy = $('#modalCopyLink');
+                    const btnMD = $('#modalCopyMarkdown');
+                    const btnHTML = $('#modalCopyHTML');
+                    const btnShare = $('#modalShare');
+                    const btnSrc = $('#modalOpenSource');
+
+                    if (btnDL) btnDL.onclick = () => downloadGif(gif, 'gif');
+                    if (btnDLMp4) btnDLMp4.onclick = () => downloadGif(gif, 'mp4');
+                    if (btnCopy) btnCopy.onclick = () => copyToClipboard(imgUrl, 'GIF URL copied!');
+                    if (btnMD) btnMD.onclick = () => {
+                        const md = `![${title}](${imgUrl})`;
+                        copyToClipboard(md, 'Markdown copied!');
+                    };
+                    if (btnHTML) btnHTML.onclick = () => {
+                        const html = `<img src="${imgUrl}" alt="${title}" />`;
+                        copyToClipboard(html, 'HTML copied!');
+                    };
+                    if (btnShare) btnShare.onclick = () => shareGif(gif);
+                    if (btnSrc) btnSrc.onclick = () => window.open(imgUrl, '_blank');
+
+                    // Tag clicks in modal
+                    modalDetails.querySelectorAll('.modal-tag').forEach(tagEl => {
+                        tagEl.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            const tag = tagEl.getAttribute('data-tag');
+                            closeModal();
+                            searchInput.value = tag;
+                            performSearch(tag, true, 'relevant');
+                            searchInput.focus();
+                        });
+                    });
+
+                    // Load related
+                    loadRelatedGifs(gif.id);
+                }, 50);
+
+                // Focus trap
+                setTimeout(() => modalClose.focus(), 100);
+            }
+
+            function closeModal() {
+                modalOverlay.style.display = 'none';
+                modalOverlay.setAttribute('aria-hidden', 'true');
+                document.body.style.overflow = '';
+                currentModalGif = null;
+                modalGifWrap.innerHTML = '';
+                modalDetails.innerHTML = '';
+            }
+
+            async function loadRelatedGifs(gifId) {
+                const relatedRow = $('#relatedRow');
+                if (!relatedRow) return;
+
+                try {
+                    const data = await fetchRelated(gifId);
+
+                    if (data.data && data.data.length > 0) {
+
+                        relatedRow.innerHTML = '';
+
+                        data.data.slice(0, 8).forEach(g => {
+
+                            const thumbUrl =
+                                g.images?.fixed_width_small?.url ||
+                                g.images?.fixed_width?.url ||
+                                g.images?.downsized_small?.url ||
+                                g.images?.downsized?.url ||
+                                '';
+
+                            const thumb = document.createElement('div');
+                            thumb.className = 'related-thumb';
+                            thumb.title = g.title || '';
+
+                            thumb.innerHTML = `
+                                <img
+                                    src="${thumbUrl}"
+                                    alt="${g.title || ''}"
+                                    loading="lazy">
+                            `;
+
+                            // Open the clicked related GIF
+                            thumb.addEventListener('click', () => {
+                                openModal(g);
+                            });
+
+                            relatedRow.appendChild(thumb);
+                        });
+
+                    } else {
+                        relatedRow.innerHTML =
+                            '<span style="color:var(--text-muted);font-size:0.8rem;">No related GIFs</span>';
+                    }
+
+                } catch (err) {
+                    console.error(err);
+
+                    if (relatedRow) {
+                        relatedRow.innerHTML =
+                            '<span style="color:var(--text-muted);font-size:0.8rem;">Unable to load</span>';
+                    }
+                }
+            }
+
+            // ───────────────────────────────────
+            // Actions
+            // ───────────────────────────────────
+            async function downloadGif(gif, format = 'gif') {
+                const url = format === 'mp4' ?
+                    (gif.images?.original?.mp4 || gif.images?.original?.url) :
+                    (gif.images?.original?.url || gif.images?.fixed_width?.url);
+                if (!url) return showToast('⚠️ No download URL available');
+                try {
+                    showToast('📥 Downloading...');
+                    const res = await fetch(url);
+                    const blob = await res.blob();
+                    const ext = format === 'mp4' ? 'mp4' : 'gif';
+                    const filename = `${gif.title || 'gif'}.${ext}`;
+                    const blobUrl = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = filename.replace(/[^a-z0-9_.-]/gi, '_');
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(blobUrl);
+                    showToast('✅ Downloaded!');
+                } catch (err) {
+                    // Fallback: open in new tab
+                    window.open(url, '_blank');
+                    showToast('📥 Opened in new tab for download');
+                }
+            }
+
+            function copyToClipboard(text, successMsg = 'Copied!') {
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(text).then(() => showToast('📋 ' + successMsg));
+                } else {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    showToast('📋 ' + successMsg);
+                }
+            }
+
+            function shareGif(gif) {
+                const url = gif.images?.original?.url || gif.images?.fixed_width?.url || '';
+                if (navigator.share) {
+                    navigator.share({
+                        title: gif.title || 'Check out this GIF',
+                        url: url,
+                    }).catch(() => copyToClipboard(url, 'Link copied for sharing!'));
+                } else {
+                    copyToClipboard(url, 'Link copied for sharing!');
+                }
+            }
+
+            function toggleFavorite(gifId) {
+                if (favorites[gifId]) {
+                    delete favorites[gifId];
+                } else {
+                    const gif = allGifs.find(g => g.id === gifId);
+                    favorites[gifId] = {
+                        id: gifId,
+                        title: gif?.title || '',
+                        url: gif?.images?.fixed_width?.url || gif?.images?.original?.url || '',
+                        savedAt: Date.now(),
+                    };
+                }
+                localStorage.setItem('gif_finder_favorites', JSON.stringify(favorites));
+                // Update all card buttons for this GIF
+                updateFavButtons(gifId);
+            }
+
+            function updateFavButtons(gifId) {
+                const isFav = !!favorites[gifId];
+                document.querySelectorAll(`.fav-btn[data-gif-id="${gifId}"]`).forEach(btn => {
+                    btn.innerHTML = isFav ? '❤️' : '🤍';
+                    btn.classList.toggle('fav-active', isFav);
+                    btn.setAttribute('aria-label', isFav ? 'Remove from favorites' : 'Add to favorites');
+                    btn.title = isFav ? 'Unfavorite' : 'Favorite';
+                });
+            }
+
+            function addRecentSearch(query) {
+                recentSearchList = recentSearchList.filter(s => s.toLowerCase() !== query.toLowerCase());
+                recentSearchList.unshift(query);
+                if (recentSearchList.length > 10) recentSearchList = recentSearchList.slice(0, 10);
+                localStorage.setItem('gif_finder_recent', JSON.stringify(recentSearchList));
+                renderRecentSearches();
+            }
+
+            function renderRecentSearches() {
+                const existingTags = recentSearches.querySelectorAll('.recent-tag');
+                existingTags.forEach(t => t.remove());
+                if (recentSearchList.length === 0) {
+                    const label = recentSearches.querySelector('.rs-label');
+                    if (label) label.style.display = 'none';
+                    return;
+                }
+                const label = recentSearches.querySelector('.rs-label');
+                if (label) label.style.display = 'inline';
+                recentSearchList.forEach(query => {
+                    const tag = document.createElement('span');
+                    tag.className = 'recent-tag';
+                    tag.textContent = query;
+                    tag.addEventListener('click', () => {
+                        searchInput.value = query;
+                        performSearch(query, true, 'relevant');
+                    });
+                    recentSearches.appendChild(tag);
+                });
+            }
+
+            // ───────────────────────────────────
+            // Suggestions
+            // ───────────────────────────────────
+            function showSuggestions(filter = '') {
+                const allSuggestions = [...new Set([...recentSearchList, 'happy birthday',
+                    'cat funny', 'hello waving', 'thumbs up', 'dance party', 'good morning',
+                    'thank you', 'celebration', 'cool vibe', 'epic fail'
+                ])];
+                const filtered = filter ?
+                    allSuggestions.filter(s => s.toLowerCase().includes(filter.toLowerCase())).slice(0, 8) :
+                    recentSearchList.slice(0, 6);
+                if (filtered.length === 0) {
+                    suggestionsDropdown.classList.remove('active');
+                    return;
+                }
+                suggestionsDropdown.innerHTML = filtered.map(s =>
+                    `<div class="suggestion-item" data-query="${s}">
+                <span class="s-icon">🕐</span> ${escapeHTML(s)}
+              </div>`
+                ).join('');
+                suggestionsDropdown.classList.add('active');
+                // Bind clicks
+                suggestionsDropdown.querySelectorAll('.suggestion-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const q = item.getAttribute('data-query');
+                        searchInput.value = q;
+                        suggestionsDropdown.classList.remove('active');
+                        performSearch(q, true, 'relevant');
+                    });
+                });
+            }
+
+            function hideSuggestions() {
+                suggestionsDropdown.classList.remove('active');
+            }
+
+            // ───────────────────────────────────
+            // Toast
+            // ───────────────────────────────────
+            function showToast(message) {
+                const toast = document.createElement('div');
+                toast.className = 'toast';
+                toast.textContent = message;
+                toastContainer.appendChild(toast);
+                setTimeout(() => {
+                    if (toast.parentNode) toast.remove();
+                }, 2400);
+            }
+
+            // ───────────────────────────────────
+            // Utility
+            // ───────────────────────────────────
+            function escapeHTML(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            function getRandomQuery() {
+                const queries = [
+                    'happy dance', 'celebration', 'cool cat', 'epic win', 'funny face',
+                    'mind blown', 'party time', 'cute puppy', 'amazing', 'wow reaction',
+                    'facepalm', 'victory', 'good vibes', 'hello there', 'magic',
+                ];
+                return queries[Math.floor(Math.random() * queries.length)];
+            }
+
+            // ───────────────────────────────────
+            // Event Listeners
+            // ───────────────────────────────────
+            searchInput.addEventListener('input', () => {
+                const val = searchInput.value.trim();
+                searchClear.classList.toggle('visible', val.length > 0);
+                if (val.length > 0) {
+                    showSuggestions(val);
+                } else {
+                    hideSuggestions();
+                }
+            });
+
+            searchInput.addEventListener('focus', () => {
+                if (searchInput.value.trim().length === 0 && recentSearchList.length > 0) {
+                    showSuggestions('');
+                }
+            });
+
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const val = searchInput.value.trim();
+                    if (val) {
+                        hideSuggestions();
+                        performSearch(val, true, 'relevant');
+                    }
+                }
+                if (e.key === 'Escape') {
+                    hideSuggestions();
+                    searchInput.blur();
+                }
+            });
+
+            searchClear.addEventListener('click', () => {
+                searchInput.value = '';
+                searchClear.classList.remove('visible');
+                hideSuggestions();
+                searchInput.focus();
+            });
+
+            searchSubmit.addEventListener('click', () => {
+                const val = searchInput.value.trim();
+                if (val) {
+                    hideSuggestions();
+                    performSearch(val, true, 'relevant');
+                }
+            });
+
+            backBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                searchClear.classList.remove('visible');
+                hideSuggestions();
+                loadTrending(true);
+                backBtn.style.display = 'none';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+
+            sortGroup.addEventListener('click', (e) => {
+                const btn = e.target.closest('.sort-btn');
+                if (!btn || isLoading) return;
+                const sort = btn.getAttribute('data-sort');
+                if (sort === currentSort) return;
+                if (currentQuery) {
+                    performSearch(currentQuery, true, sort);
+                } else {
+                    currentSort = sort;
+                    updateSortButtons(sort);
+                    loadTrending(true);
+                }
+            });
+
+            // Category pills
+            categoriesRow.addEventListener('click', (e) => {
+                const pill = e.target.closest('.category-pill');
+                if (!pill) return;
+                const query = pill.getAttribute('data-query');
+                if (query === 'trending') {
+                    searchInput.value = '';
+                    searchClear.classList.remove('visible');
+                    loadTrending(true);
+                    backBtn.style.display = 'none';
+                } else {
+                    searchInput.value = query;
+                    searchClear.classList.add('visible');
+                    performSearch(query, true, 'relevant');
+                }
+                window.scrollTo({ top: 250, behavior: 'smooth' });
+            });
+
+            // GIF grid delegations
+            gifGrid.addEventListener('click', (e) => {
+                const card = e.target.closest('.gif-card');
+                if (!card) return;
+                const gifId = card.getAttribute('data-gif-id');
+                const gif = allGifs.find(g => g.id === gifId);
+                if (!gif) return;
+
+                // Check if an action button was clicked
+                const actionBtn = e.target.closest('[data-action]');
+                if (actionBtn) {
+                    e.stopPropagation();
+                    const action = actionBtn.getAttribute('data-action');
+                    const gid = actionBtn.getAttribute('data-gif-id');
+                    const targetGif = allGifs.find(g => g.id === gid);
+                    if (!targetGif) return;
+                    switch (action) {
+                        case 'fav':
+                            toggleFavorite(gid);
+                            break;
+                        case 'download':
+                            downloadGif(targetGif, 'gif');
+                            break;
+                        case 'copy':
+                            copyToClipboard(targetGif.images?.original?.url || targetGif.images?.fixed_width
+                                ?.url || '', 'GIF URL copied!');
+                            break;
+                        case 'share':
+                            shareGif(targetGif);
+                            break;
+                        case 'preview':
+                            openModal(targetGif);
+                            break;
+                    }
+                    return;
+                }
+
+                // Check if a tag was clicked
+                const tagEl = e.target.closest('.card-tag-mini');
+                if (tagEl) {
+                    e.stopPropagation();
+                    const tag = tagEl.getAttribute('data-tag');
+                    searchInput.value = tag;
+                    searchClear.classList.add('visible');
+                    performSearch(tag, true, 'relevant');
+                    window.scrollTo({ top: 200, behavior: 'smooth' });
+                    return;
+                }
+
+                // Otherwise open modal
+                openModal(gif);
+            });
+
+            // Keyboard support for cards
+            gifGrid.addEventListener('keydown', (e) => {
+                const card = e.target.closest('.gif-card');
+                if (!card) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const gifId = card.getAttribute('data-gif-id');
+                    const gif = allGifs.find(g => g.id === gifId);
+                    if (gif) openModal(gif);
+                }
+            });
+
+            // Modal close
+            modalClose.addEventListener('click', closeModal);
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) closeModal();
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modalOverlay.style.display === 'flex') {
+                    closeModal();
+                }
+                // '/' shortcut for search
+                if (e.key === '/' && document.activeElement !== searchInput &&
+                    modalOverlay.style.display !== 'flex') {
+                    e.preventDefault();
+                    searchInput.focus();
+                }
+            });
+
+            // Surprise button
+            surpriseBtn.addEventListener('click', () => {
+                const randomQuery = getRandomQuery();
+                searchInput.value = randomQuery;
+                searchClear.classList.add('visible');
+                performSearch(randomQuery, true, 'relevant');
+                window.scrollTo({ top: 200, behavior: 'smooth' });
+                showToast('🎲 Surprise! Searching: ' + randomQuery);
+            });
+
+            // Click outside suggestions
+            document.addEventListener('click', (e) => {
+                if (!searchWrapper.contains(e.target)) {
+                    hideSuggestions();
+                }
+            });
+
+            const header = document.querySelector("header");
+
+            window.addEventListener("scroll", () => {
+
+                if (window.scrollY > 150) {
+                    header.classList.add("compact");
+                } else {
+                    header.classList.remove("compact");
+                }
+
+            });
+
+            // ───────────────────────────────────
+            // Init
+            // ───────────────────────────────────
+            function init() {
+                renderRecentSearches();
+                loadTrending(true);
+                // Show API key notice if in demo mode
+                if (IS_DEMO_MODE) {
+                    console.log('%c🎨 GIF Finder — Demo Mode %c| %cReplace GIPHY_API_KEY with your key for real GIFs.',
+                        'font-weight:bold;color:#7c5cfc;',
+                        '',
+                        'color:#9a9da8;');
+                    console.log('%cGet a free API key at: %chttps://developers.giphy.com',
+                        'color:#9a9da8;',
+                        'color:#4ec9f0;text-decoration:underline;');
+                }
+            }
+
+            init();
+        })();
+    </script>
+</body>
+</html>
